@@ -1,0 +1,217 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/> <!--320-->
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta property="og:image" content="thumbnail.gif" />
+        <title>one a day</title>
+        <style>
+            body{
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <script src="./libs/ccapture/CCapture.all.min.js"></script>
+        <script src="./debugger.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.3.1/p5.js"></script>
+        <script>
+let canvas;
+let recorder;
+
+let capturer = new window.CCapture( { 
+    name: 'render',
+    format: 'gif', 
+    workersPath: 'libs/ccapture/' 
+});
+
+const debugging = new URLSearchParams(window.location.search).get('debug');
+if (debugging !== null) {
+    debug = new DebugUI();
+    debug.recordBtn.addEventListener('click', () => handleRecordBtnClick())
+    debug.formatSelect.addEventListener('change', () => handleFormatSelectChange())
+}
+
+handleRecordBtnClick = function () {
+    if (debug.formatSelect.value == 'thumbnail') {
+        saveThumbnail(renderer.canvas);
+    } else {
+        frameCount = 0;
+        recording = true;
+        capturer.start();
+    }
+}
+
+handleFormatSelectChange = function () {
+
+}
+
+handleComplete = function () {
+    recording = false;
+    capturer.stop();
+    capturer.save();    
+}
+
+checkForRecording = function () {
+  if (debugging !== null) {
+    if (recording) {
+      capturer.capture(canvas.elt);
+      if (frameDelta == 0) {
+        handleComplete();
+      }
+    }
+
+    if (!recordingStarted && !recording) {
+      if (frameDelta == 0) {
+        recordingStarted = true;
+        recording = true;
+        capturer.start();
+        capturer.capture(canvas.elt);
+      }
+    }
+  }
+}
+
+/// BEGIN SKETCH
+const colors = ["#2f3136", "#2a2b30", "#7d8187", "#1e1f23", "#5f6a89"];
+const backgroundColor = "#202225";
+const width = 600;
+const height = 600;
+const totalFrames = 300;
+let frameCount = 0;
+let recording = false;
+let recordingStarted = false;
+let frameDelta = 0;
+let m;
+let b;
+let particles = [];
+
+let c01 = (g) => {
+  return constrain(g, 0, 1);
+};
+
+let ease = (p) => {
+  p = c01(p);
+  return 3 * p * p - 2 * p * p * p;
+};
+
+function easeInQuint(x) {
+  return x * x * x * x * x;
+}
+
+function easeOutQuart(x) {
+  return 1 - pow(1 - x, 4);
+}
+
+function easeOutExpo(x) {
+  return x === 1 ? 1 : 1 - pow(2, -10 * x);
+}
+
+function setup() {
+  canvas = createCanvas(width, height, WEBGL);
+  noiseSeed(20);
+  let bg = color(backgroundColor);
+  background(bg);
+}
+
+function draw() {
+  frameCount += 1;
+  frameDelta = (2 * Math.PI * (frameCount % totalFrames)) / totalFrames;
+
+  let bg = color(backgroundColor);
+  background(bg);
+
+  let w = 40;
+  let h = 40;
+  let space = 10;
+
+  translate((-w * space) / 2, (-h * space) / 2);
+
+  for (let i = 0; i < w; i++) {
+    for (let j = 0; j < h; j++) {
+      push();
+
+      translate(i * space, j * space, 0);
+
+      let d = dist(i, j, w / 2, h / 2);
+
+      let delt = frameDelta * 15;
+
+      let s = 2;
+      //s = s + sin(delt / 2) * 0.5;
+
+      let d2 = dist(i, j, w / 4, h / 4);
+      s -= sin(delt + d2 / 2) * 0.5;
+
+      let d3 = dist(i, j, w - w / 4, h - h / 4);
+      s -= sin(delt + d3 / 2) * 0.5;
+
+      let d4 = dist(i, j, w / 4, h - h / 4);
+      s -= sin(delt + d4 / 2) * 0.5;
+
+      let d5 = dist(i, j, w - w / 4, h / 4);
+      s -= sin(delt + d5 / 2) * 0.5;
+
+      let _scale = map(s, 0, 1, 1, 1.5);
+      scale(_scale);
+      //scale(_scale);
+      //noFill();
+      
+      let _y = -s * 1.5;
+      translate(0, _y);
+      
+      //stroke(color(255, 255, 255, 255));
+      //let c1 = color(255, 240, 240, 255);
+      //let c2 = color(210, 230, 255, 255);
+      let c1 = color(255, 240, 190, 255);
+      let c2 = color(180, 190, 255, 255); 
+      
+      //let colorPct = sin(delt + d / 2);
+      let colorPct = abs(s * 1.5) / 10;
+      let c = lerpColor(c2, c1, colorPct);
+      fill(c);
+      noStroke();
+      drawShape();
+
+      pop();
+    }
+  }
+
+  checkForRecording();
+}
+
+function drawShape() {
+  circle(0, 0, 3);
+}
+
+function setGradient(s, c1, c2) {
+  // noprotect
+  noFill();
+  for (var y = 0; y < s.height; y++) {
+    var inter = map(y, 0, s.height, 0, 1);
+    var c = lerpColor(c1, c2, inter);
+    s.stroke(c);
+    s.line(0, y, s.width, y);
+  }
+}
+
+function getPolar(x, y, r, a) {
+  // Get as radians
+  var fa = a * (Math.PI / 180);
+
+  // Convert coordinates
+  var dx = r * Math.cos(fa);
+  var dy = r * Math.sin(fa);
+
+  // Add origin values (not necessary)
+  var fx = x + dx;
+  var fy = y + dy;
+
+  return [fx, fy];
+}
+
+
+
+        </script>
+    </body>
+</html>
